@@ -12,6 +12,9 @@ final class SettingsPanel: Panel {
     private var passwordSection = PasswordSection.closed
     private let newPassword = NSSecureTextField()
     private let repeatPassword = NSSecureTextField()
+    private let holdKeyField = NSTextField()
+    private var holdSlider: NSSlider?
+    private let holdValue = NSTextField(labelWithString: "")
     private let sizeValue = NSTextField(labelWithString: "")
     private var preview: SaverView?
 
@@ -20,26 +23,49 @@ final class SettingsPanel: Panel {
         NSColorPanel.shared.showsAlpha = true
     }
 
+    /// Shows the unlock fields without authenticating (used by `--preview=settings-editing`).
+    func previewEditing() {
+        passwordSection = .editing
+        rebuild()
+    }
+
     override func build() {
         add(text("Settings", size: Q.tH2, bold: true), gapAfter: Q.s3)
 
-        // Password
-        add(caption("Unlock password"), gapAfter: Q.s1)
+        // Unlocking: password, hold key and hold time, behind the Mac's own authentication.
+        add(caption("Unlocking"), gapAfter: Q.s1)
         switch passwordSection {
         case .closed:
-            add(text("Typed blind on the lock screen. Changing it asks for your Mac password.", size: Q.tBody),
-                gapAfter: Q.s2)
-            add(button("Change password", solid: false, action: #selector(authenticate)), gapAfter: Q.s4)
+            add(text("""
+                Type the password blind on the lock screen, or hold the \(settings.holdKey.uppercased()) key \
+                for \(Int(settings.holdSeconds)) seconds. Changing these asks for your Mac password.
+                """, size: Q.tBody), gapAfter: Q.s2)
+            add(button("Change unlock settings", solid: false, action: #selector(authenticate)), gapAfter: Q.s4)
         case .editing:
-            add(field(newPassword, placeholder: "New password"), gapAfter: Q.s2)
-            add(field(repeatPassword, placeholder: "Repeat it"), gapAfter: Q.s2)
+            add(field(newPassword, placeholder: "New password (leave empty to keep)"), gapAfter: Q.s2)
+            add(field(repeatPassword, placeholder: "Repeat it"), gapAfter: Q.s3)
+            add(caption("Hold key (one letter)"), gapAfter: Q.s1)
+            holdKeyField.stringValue = settings.holdKey
+            add(field(holdKeyField, placeholder: "c"), gapAfter: Q.s3)
+            add(caption("Hold time"), gapAfter: Q.s1)
+            let slider = NSSlider(value: settings.holdSeconds, minValue: 3, maxValue: 60, target: self,
+                                  action: #selector(holdTimeChanged))
+            slider.isContinuous = true
+            holdSlider = slider
+            holdValue.font = Q.font(Q.tCaption)
+            holdValue.textColor = ink.withAlphaComponent(0.84)
+            holdValue.alignment = .right
+            holdValue.widthAnchor.constraint(equalToConstant: Q.s6 / 2).isActive = true
+            holdValue.stringValue = "\(Int(settings.holdSeconds)) s"
+            add(row([slider, holdValue]), gapAfter: Q.s3)
             add(row([
-                button("Save", solid: true, key: "\r", action: #selector(savePassword), width: (Panel.contentWidth - Q.s3) / 2),
-                button("Cancel", solid: false, action: #selector(cancelPassword), width: (Panel.contentWidth - Q.s3) / 2),
-            ]), gapAfter: Q.s4)
+                button("Save", solid: true, key: "\r", action: #selector(saveUnlockSettings), width: (Panel.contentWidth - Q.s3) / 2),
+                button("Cancel", solid: false, key: "\u{1b}", action: #selector(cancelUnlockSettings), width: (Panel.contentWidth - Q.s3) / 2),
+            ]), gapAfter: 0)
+            return // the lock-screen settings come back after Save or Cancel; both together exceed a laptop screen
         case .message(let message):
             add(text(message, size: Q.tBody), gapAfter: Q.s2)
-            add(button("Change password", solid: false, action: #selector(authenticate)), gapAfter: Q.s4)
+            add(button("Change unlock settings", solid: false, action: #selector(authenticate)), gapAfter: Q.s4)
         }
 
         // Lock screen
@@ -177,22 +203,35 @@ final class SettingsPanel: Panel {
         }
     }
 
-    @objc private func savePassword() {
+    @objc private func holdTimeChanged(_ sender: NSSlider) {
+        holdValue.stringValue = "\(Int(sender.doubleValue.rounded())) s"
+    }
+
+    @objc private func saveUnlockSettings() {
         let password = newPassword.stringValue
-        guard password.count >= 4 else {
-            passwordSection = .message("Use at least 4 characters.")
+        let key = holdKeyField.stringValue.lowercased()
+        guard key.count == 1, key.first?.isLetter == true || key.first?.isNumber == true else {
+            passwordSection = .message("The hold key must be a single letter or digit.")
             return rebuild()
         }
-        guard password == repeatPassword.stringValue else {
-            passwordSection = .message("The two entries differ. Try again.")
-            return rebuild()
+        if !password.isEmpty {
+            guard password.count >= 4 else {
+                passwordSection = .message("Use at least 4 characters for the password.")
+                return rebuild()
+            }
+            guard password == repeatPassword.stringValue else {
+                passwordSection = .message("The two password entries differ. Try again.")
+                return rebuild()
+            }
+            settings.password = password
         }
-        settings.password = password
-        passwordSection = .message("Password changed.")
+        settings.holdKey = key
+        settings.holdSeconds = (holdSlider?.doubleValue ?? settings.holdSeconds).rounded()
+        passwordSection = .message(password.isEmpty ? "Unlock settings saved." : "Password and unlock settings saved.")
         rebuild()
     }
 
-    @objc private func cancelPassword() {
+    @objc private func cancelUnlockSettings() {
         passwordSection = .closed
         rebuild()
     }

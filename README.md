@@ -30,10 +30,10 @@ From then on the app opens on **Ready to lock**: press Return (or **Lock now**) 
 
 Open **Settings** from the start window or with ⌘, in the menu bar.
 
-- **Unlock password.** The default is `unlock`; change it before you rely on the app. Changing it asks for your Mac password or Touch ID first. Typing on the lock screen is case-insensitive, so Caps Lock doesn't matter, and after a typo you just type the word again.
+- **Unlocking.** The password (default `unlock`; change it before you rely on the app), the hold-to-unlock key (one letter or digit, default `c`) and the hold time (3–60 s, default 10). Changing any of them asks for your Mac password or Touch ID first. Typing on the lock screen is case-insensitive, so Caps Lock doesn't matter, and after a typo you just type the word again.
 - **Lock screen.** Font, size, text colour, background colour and the clock's animation (drift, fade, bounce or none), with a live preview. Reduce Motion in macOS turns the movement into plain jumps.
 
-Everything is stored in the app's defaults, so it can also be set from the terminal, which is the only way to change the hold-to-unlock key and time (set a very long time to disable the hold):
+Everything is stored in the app's defaults, so it can also be set from the terminal (a very long `holdSeconds` disables the hold):
 
 ```sh
 defaults write com.chcorral.lockshield unlockPassword -string "yourword"

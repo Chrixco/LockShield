@@ -47,8 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         buildMenu()
         if let preview {
             var panel: Panel?
-            if preview == "settings" {
+            if preview.hasPrefix("settings") {
                 openSettings()
+                if preview == "settings-editing" { settingsPanel?.previewEditing() }
                 panel = settingsPanel
             } else if let state = StartPanel.State(rawValue: preview) {
                 showStart(state, polls: false)
