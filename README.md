@@ -24,21 +24,26 @@ cp -R build/LockShield.app /Applications/
 
 On first launch LockShield asks for the Accessibility permission. Click **Open settings**, switch LockShield on under *Privacy & Security › Accessibility*, and the window changes to **Ready to lock** by itself. Without the permission you can still choose **Lock anyway**: the screen is covered and app switching is disabled, but some system shortcuts and media keys get through.
 
-## Set your password
+From then on the app opens on **Ready to lock**: press Return (or **Lock now**) to lock. After unlocking it returns to that window.
 
-The default password is `unlock`. Change it before you rely on the app:
+## Settings
+
+Open **Settings** from the start window or with ⌘, in the menu bar.
+
+- **Unlock password.** The default is `unlock`; change it before you rely on the app. Changing it asks for your Mac password or Touch ID first. Typing on the lock screen is case-insensitive, so Caps Lock doesn't matter, and after a typo you just type the word again.
+- **Lock screen.** Font, size, text colour, background colour and the clock's animation (drift, fade, bounce or none), with a live preview. Reduce Motion in macOS turns the movement into plain jumps.
+
+Everything is stored in the app's defaults, so it can also be set from the terminal, which is the only way to change the hold-to-unlock key and time (set a very long time to disable the hold):
 
 ```sh
 defaults write com.chcorral.lockshield unlockPassword -string "yourword"
-```
-
-Typing is case-insensitive, so Caps Lock doesn't matter. After a typo, just type the word again.
-
-The hold-to-unlock key and time can be changed too, or the hold disabled by setting a very long time:
-
-```sh
 defaults write com.chcorral.lockshield holdKey -string "c"
 defaults write com.chcorral.lockshield holdSeconds -float 10
+defaults write com.chcorral.lockshield fontFamily -string "Avenir Next"
+defaults write com.chcorral.lockshield fontSize -float 96
+defaults write com.chcorral.lockshield textColor -string "#ffffff48"
+defaults write com.chcorral.lockshield backgroundColor -string "#000000"
+defaults write com.chcorral.lockshield animation -string drift   # drift, fade, bounce, none
 ```
 
 ## If you are locked out
@@ -49,7 +54,7 @@ defaults write com.chcorral.lockshield holdSeconds -float 10
 
 ## What it is not
 
-LockShield stops casual interaction. It is not a security boundary and not a replacement for the macOS lock screen: anyone who knows the password, or holds `c` for ten seconds, gets in, and the password is stored in plain text in the app's preferences.
+LockShield stops casual interaction. It is not a security boundary and not a replacement for the macOS lock screen: anyone who knows the password, or holds `c` for ten seconds, gets in, and the password is stored in plain text in the app's preferences (the Mac-password check in Settings guards the window, not the preference file).
 
 ## Build and test
 
@@ -57,7 +62,7 @@ LockShield stops casual interaction. It is not a security boundary and not a rep
 ./build.sh                                   # builds build/LockShield.app
 build/LockShield.app/Contents/MacOS/LockShield --self-test        # locks for ~3 s, unlocks with the password
 build/LockShield.app/Contents/MacOS/LockShield --self-test=hold   # same, unlocks by holding the key
-build/LockShield.app/Contents/MacOS/LockShield --preview-prompt=permission   # shows the first-run window
+build/LockShield.app/Contents/MacOS/LockShield --preview=permission   # shows a window: permission, ready or settings
 ```
 
 `build.sh` signs with an Apple Development certificate when one is in the keychain, so macOS keeps the Accessibility permission across rebuilds. With an ad-hoc signature the permission has to be granted again after each build.

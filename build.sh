@@ -8,7 +8,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Info.plist "$APP/Contents/Info.plist"
 cp Icon/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"  # regenerate with: swift Icon/make_icon.swift
-swiftc -O -swift-version 5 -o "$APP/Contents/MacOS/LockShield" Sources/main.swift
+swiftc -O -swift-version 5 -o "$APP/Contents/MacOS/LockShield" Sources/*.swift
 
 # Sign with the Apple Development certificate when there is one, so macOS keeps the
 # Accessibility permission across rebuilds. An ad-hoc signature ("-") changes with
