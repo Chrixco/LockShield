@@ -9,7 +9,7 @@ While it runs:
 - all keyboard, mouse and trackpad input is swallowed, including Bluetooth devices,
 - the Dock, menu bar, Cmd-Tab, Mission Control, Force Quit and logout are disabled.
 
-Nothing on screen asks for a password. To unlock, type it blind, anywhere, or hold the `c` key for ten seconds.
+Nothing on screen asks for a password. To unlock, type it blind, anywhere, or hold the `c` key for ten seconds. If the keyboard is dead, hold the left mouse or trackpad button for three seconds.
 
 ## Install
 
@@ -30,7 +30,7 @@ From then on the app opens on **Ready to lock**: press Return (or **Lock now**) 
 
 Open **Settings** from the start window or with ⌘, in the menu bar.
 
-- **Unlocking.** The password (default `unlock`; change it before you rely on the app), the hold-to-unlock key (one letter or digit, default `c`) and the hold time (3–60 s, default 10). Changing any of them asks for your Mac password or Touch ID first. Typing on the lock screen is case-insensitive, so Caps Lock doesn't matter, and after a typo you just type the word again.
+- **Unlocking.** The password (default `unlock`; change it before you rely on the app), the hold-to-unlock key (one letter or digit, default `c`) and its hold time (3–60 s, default 10), and the mouse-button hold time (0–30 s, default 3; 0 switches it off). Changing any of them asks for your Mac password or Touch ID first. Typing on the lock screen is case-insensitive, so Caps Lock doesn't matter, and after a typo you just type the word again.
 - **Lock screen.** Font, size, text colour, background colour and the clock's animation (drift, fade, bounce or none), with a live preview. Reduce Motion in macOS turns the movement into plain jumps.
 
 Everything is stored in the app's defaults, so it can also be set from the terminal (a very long `holdSeconds` disables the hold):
@@ -39,6 +39,7 @@ Everything is stored in the app's defaults, so it can also be set from the termi
 defaults write com.chcorral.lockshield unlockPassword -string "yourword"
 defaults write com.chcorral.lockshield holdKey -string "c"
 defaults write com.chcorral.lockshield holdSeconds -float 10
+defaults write com.chcorral.lockshield mouseHoldSeconds -float 3   # 0 = off
 defaults write com.chcorral.lockshield fontFamily -string "Avenir Next"
 defaults write com.chcorral.lockshield fontSize -float 96
 defaults write com.chcorral.lockshield textColor -string "#ffffff48"
@@ -48,13 +49,14 @@ defaults write com.chcorral.lockshield animation -string drift   # drift, fade, 
 
 ## If you are locked out
 
+- Keyboard dead? Hold the left mouse or trackpad button for three seconds, or plug in any other keyboard: LockShield reads them all.
 - Hold the power button to force the Mac off. No app can block that.
 - From another machine: `ssh you@your-mac killall LockShield`.
 - Pressing the power button or Touch ID briefly brings up the normal macOS lock screen, which also works as usual.
 
 ## What it is not
 
-LockShield stops casual interaction. It is not a security boundary and not a replacement for the macOS lock screen: anyone who knows the password, or holds `c` for ten seconds, gets in, and the password is stored in plain text in the app's preferences (the Mac-password check in Settings guards the window, not the preference file).
+LockShield stops casual interaction. It is not a security boundary and not a replacement for the macOS lock screen: anyone who knows the password, holds `c` for ten seconds or holds the mouse button for three, gets in, and the password is stored in plain text in the app's preferences (the Mac-password check in Settings guards the window, not the preference file).
 
 ## Build and test
 
@@ -62,6 +64,7 @@ LockShield stops casual interaction. It is not a security boundary and not a rep
 ./build.sh                                   # builds build/LockShield.app
 build/LockShield.app/Contents/MacOS/LockShield --self-test        # locks for ~3 s, unlocks with the password
 build/LockShield.app/Contents/MacOS/LockShield --self-test=hold   # same, unlocks by holding the key
+build/LockShield.app/Contents/MacOS/LockShield --self-test=mouse  # same, unlocks by holding the mouse button
 build/LockShield.app/Contents/MacOS/LockShield --preview=permission   # shows a window: permission, ready or settings
 ```
 

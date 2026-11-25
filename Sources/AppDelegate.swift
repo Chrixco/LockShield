@@ -33,10 +33,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var holdTimer: Timer?
     private var holdDuration: TimeInterval = 10
 
+    /// Same for the left mouse button: the timer runs while it is down. 0 means off.
+    private var mouseHoldTimer: Timer?
+    private var mouseHoldDuration: TimeInterval = 3
+
     /// `--self-test` locks for a moment, types the password itself and exits. Used to verify a build.
-    /// `--self-test=hold` unlocks by holding the key instead (with a shortened hold).
+    /// `--self-test=hold` unlocks by holding the key instead, `--self-test=mouse` by holding the
+    /// mouse button (both with a shortened hold).
     private let selfTest = CommandLine.arguments.contains { $0.hasPrefix("--self-test") }
     private let selfTestHold = CommandLine.arguments.contains("--self-test=hold")
+    private let selfTestMouse = CommandLine.arguments.contains("--self-test=mouse")
 
     /// `--preview=permission`, `=ready` or `=settings` shows that window and keeps it there.
     private let preview = CommandLine.arguments
@@ -125,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         locked = true
         matcher = PasswordMatcher(password: Settings.shared.password)
         holdDuration = selfTest ? 1 : Settings.shared.holdSeconds
+        mouseHoldDuration = selfTest ? 1 : Settings.shared.mouseHoldSeconds
         settingsPanel?.hide()
         NSColorPanel.shared.orderOut(nil)
 
@@ -154,10 +161,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ]
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
                 guard let self, locked else { return event }
-                if event.type == .keyDown {
-                    keyDown(event.charactersIgnoringModifiers ?? "", keyCode: event.keyCode)
-                } else if event.type == .keyUp {
-                    keyUp(keyCode: event.keyCode)
+                switch event.type {
+                case .keyDown: keyDown(event.charactersIgnoringModifiers ?? "", keyCode: event.keyCode)
+                case .keyUp: keyUp(keyCode: event.keyCode)
+                case .leftMouseDown: mouseDown()
+                case .leftMouseUp: mouseUp()
+                default: break
                 }
                 return nil
             }
@@ -237,6 +246,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyDown(String(utf16CodeUnits: units, count: length), keyCode: keyCode)
         } else if type == .keyUp {
             keyUp(keyCode: keyCode)
+        } else if type == .leftMouseDown {
+            mouseDown()
+        } else if type == .leftMouseUp {
+            mouseUp()
         }
         return nil // swallow everything
     }
@@ -264,11 +277,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         holdTimer?.invalidate()
     }
 
+    /// The mouse-button hold is the way out when the keyboard is dead. A click or a drag is
+    /// shorter than the hold time, so neither unlocks.
+    private func mouseDown() {
+        guard locked, mouseHoldDuration > 0, mouseHoldTimer == nil else { return }
+        mouseHoldTimer = Timer.scheduledTimer(withTimeInterval: mouseHoldDuration, repeats: false) { [weak self] _ in
+            self?.unlock()
+        }
+    }
+
+    private func mouseUp() {
+        mouseHoldTimer?.invalidate()
+        mouseHoldTimer = nil
+    }
+
     private func unlock() {
         guard locked else { return }
         locked = false
         holdTimer?.invalidate()
         heldKeyCode = nil
+        mouseUp()
         if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: false) }
         CGAssociateMouseAndMouseCursorPosition(1)
         NSCursor.unhide()
@@ -289,7 +317,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func runSelfTest() {
         let password = Settings.shared.password
         let holdKey = Settings.shared.holdKey
-        print("SELF-TEST: windows=\(windows.count) accessibility=\(AXIsProcessTrusted()) eventTap=\(eventTap != nil) passwordLength=\(password.count) holdKey=\(holdKey)")
+        print("SELF-TEST: windows=\(windows.count) accessibility=\(AXIsProcessTrusted()) eventTap=\(eventTap != nil) passwordLength=\(password.count) holdKey=\(holdKey) mouseHold=\(Settings.shared.mouseHoldSeconds)s")
         let holdKeyCode: UInt16 = 8
         func type(_ text: String) {
             for character in text {
@@ -300,18 +328,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in
             type(String(password.dropLast()) + "!")
             print("SELF-TEST: still locked after wrong input=\(locked)")
-            // A short press of the hold key must not unlock.
+            // A short press of the hold key, and a click, must not unlock.
             keyDown(holdKey, keyCode: holdKeyCode)
+            mouseDown()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) { [self] in
             keyUp(keyCode: holdKeyCode)
+            mouseUp()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [self] in
-            print("SELF-TEST: still locked after short press=\(locked)")
+            print("SELF-TEST: still locked after short press and click=\(locked)")
             if selfTestHold {
                 keyDown(holdKey, keyCode: holdKeyCode)
                 keyDown(holdKey, keyCode: holdKeyCode) // key repeat
                 print("SELF-TEST: holding key for \(holdDuration)s")
+            } else if selfTestMouse {
+                mouseDown()
+                print("SELF-TEST: holding mouse button for \(mouseHoldDuration)s")
             } else {
                 type("xx" + password.uppercased())
             }

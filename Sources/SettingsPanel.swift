@@ -15,6 +15,8 @@ final class SettingsPanel: Panel {
     private let holdKeyField = NSTextField()
     private var holdSlider: NSSlider?
     private let holdValue = NSTextField(labelWithString: "")
+    private var mouseSlider: NSSlider?
+    private let mouseValue = NSTextField(labelWithString: "")
     private let sizeValue = NSTextField(labelWithString: "")
     private var preview: SaverView?
 
@@ -36,9 +38,11 @@ final class SettingsPanel: Panel {
         add(caption("Unlocking"), gapAfter: Q.s1)
         switch passwordSection {
         case .closed:
+            let mouse = settings.mouseHoldSeconds > 0
+                ? ", or hold the mouse button for \(Int(settings.mouseHoldSeconds)) seconds" : ""
             add(text("""
-                Type the password blind on the lock screen, or hold the \(settings.holdKey.uppercased()) key \
-                for \(Int(settings.holdSeconds)) seconds. Changing these asks for your Mac password.
+                Type the password blind on the lock screen, hold the \(settings.holdKey.uppercased()) key \
+                for \(Int(settings.holdSeconds)) seconds\(mouse). Changing these asks for your Mac password.
                 """, size: Q.tBody), gapAfter: Q.s2)
             add(button("Change unlock settings", solid: false, action: #selector(authenticate)), gapAfter: Q.s4)
         case .editing:
@@ -58,6 +62,17 @@ final class SettingsPanel: Panel {
             holdValue.widthAnchor.constraint(equalToConstant: Q.s6 / 2).isActive = true
             holdValue.stringValue = "\(Int(settings.holdSeconds)) s"
             add(row([slider, holdValue]), gapAfter: Q.s3)
+            add(caption("Mouse button hold time (0 = off)"), gapAfter: Q.s1)
+            let mouse = NSSlider(value: settings.mouseHoldSeconds, minValue: 0, maxValue: 30, target: self,
+                                 action: #selector(mouseTimeChanged))
+            mouse.isContinuous = true
+            mouseSlider = mouse
+            mouseValue.font = Q.font(Q.tCaption)
+            mouseValue.textColor = ink.withAlphaComponent(0.84)
+            mouseValue.alignment = .right
+            mouseValue.widthAnchor.constraint(equalToConstant: Q.s6 / 2).isActive = true
+            mouseValue.stringValue = Self.seconds(settings.mouseHoldSeconds)
+            add(row([mouse, mouseValue]), gapAfter: Q.s3)
             add(row([
                 button("Save", solid: true, key: "\r", action: #selector(saveUnlockSettings), width: (Panel.contentWidth - Q.s3) / 2),
                 button("Cancel", solid: false, key: "\u{1b}", action: #selector(cancelUnlockSettings), width: (Panel.contentWidth - Q.s3) / 2),
@@ -207,6 +222,14 @@ final class SettingsPanel: Panel {
         holdValue.stringValue = "\(Int(sender.doubleValue.rounded())) s"
     }
 
+    @objc private func mouseTimeChanged(_ sender: NSSlider) {
+        mouseValue.stringValue = Self.seconds(sender.doubleValue.rounded())
+    }
+
+    private static func seconds(_ value: Double) -> String {
+        value > 0 ? "\(Int(value)) s" : "Off"
+    }
+
     @objc private func saveUnlockSettings() {
         let password = newPassword.stringValue
         let key = holdKeyField.stringValue.lowercased()
@@ -227,6 +250,7 @@ final class SettingsPanel: Panel {
         }
         settings.holdKey = key
         settings.holdSeconds = (holdSlider?.doubleValue ?? settings.holdSeconds).rounded()
+        settings.mouseHoldSeconds = (mouseSlider?.doubleValue ?? settings.mouseHoldSeconds).rounded()
         passwordSection = .message(password.isEmpty ? "Unlock settings saved." : "Password and unlock settings saved.")
         rebuild()
     }

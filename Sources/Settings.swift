@@ -48,6 +48,13 @@ final class Settings {
         set { set(newValue, forKey: "holdSeconds") }
     }
 
+    /// Holding the left mouse (or trackpad) button down this long also unlocks, for when the
+    /// keyboard is dead. 0 switches it off.
+    var mouseHoldSeconds: TimeInterval {
+        get { defaults.object(forKey: "mouseHoldSeconds") == nil ? 3 : defaults.double(forKey: "mouseHoldSeconds") }
+        set { set(newValue, forKey: "mouseHoldSeconds") }
+    }
+
     /// Font family of the clock; empty means the system font.
     var fontFamily: String {
         get { defaults.string(forKey: "fontFamily") ?? "" }
